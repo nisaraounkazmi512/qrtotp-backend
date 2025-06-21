@@ -12,6 +12,8 @@ import qrcode
 import io
 from django.http import HttpResponse
 from .permissions import IsOTPVerified
+import os
+from django.conf import settings
 
 
 class SignupView(APIView):
@@ -79,11 +81,22 @@ def generate_qr(request):
 
     # Generate QR code image
     qr = qrcode.make(uri)
+    file_name = f"qr_codes/{user.username}_qr.png"
+
+    # Save to MEDIA directory
+    from django.core.files.base import ContentFile
+    import os
     buf = io.BytesIO()
-    qr.save(buf)
+    qr.save(buf, format='PNG')
     buf.seek(0)
 
-    return HttpResponse(buf.getvalue(), content_type='image/png')
+    # Save image file to user directory
+    user.qr_code_image.save(file_name, ContentFile(buf.read()), save=True)
+
+    # Generate full URL
+    qr_code_url = request.build_absolute_uri(user.qr_code_image.url)
+    return Response({'qr_code_url': qr_code_url})
+
 
 @api_view(['POST'])
 @authentication_classes([TokenAuthentication])

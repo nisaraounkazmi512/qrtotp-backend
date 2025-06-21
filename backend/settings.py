@@ -130,3 +130,7 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AUTH_USER_MODEL = 'accounts.CustomUser'
+
+# Media files (for serving QR code images)
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'

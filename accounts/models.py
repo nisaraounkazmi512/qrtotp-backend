@@ -23,7 +23,9 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     is_staff = models.BooleanField(default=False)
     date_joined = models.DateTimeField(default=timezone.now)
     totp_secret = models.CharField(max_length=32, blank=True, null=True)
-    otp_verified = models.BooleanField(default=False)  # <--- NEW LINE
+    otp_verified = models.BooleanField(default=False)
+    qr_code_image = models.ImageField(upload_to='qr_codes/', blank=True, null=True)
+
 
     objects = CustomUserManager()
 
