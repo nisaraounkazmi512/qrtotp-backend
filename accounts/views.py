@@ -14,6 +14,10 @@ from django.http import HttpResponse
 from .permissions import IsOTPVerified
 import os
 from django.conf import settings
+import base64
+from django.http import JsonResponse
+from io import BytesIO
+import qrcode
 
 
 class SignupView(APIView):
@@ -68,34 +72,29 @@ def logout_view(request):
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated])
 def generate_qr(request):
+    import base64
+    import pyotp
+    import qrcode
+    import io
+
     user = request.user
 
-    # Generate and save TOTP secret if not already there
     if not user.totp_secret:
         user.totp_secret = pyotp.random_base32()
         user.save()
 
-    # Generate provisioning URI
     totp = pyotp.TOTP(user.totp_secret)
     uri = totp.provisioning_uri(name=user.email, issuer_name="QROTP Project")
 
-    # Generate QR code image
+    # Generate QR code as image in memory
     qr = qrcode.make(uri)
-    file_name = f"qr_codes/{user.username}_qr.png"
+    buffer = io.BytesIO()
+    qr.save(buffer, format='PNG')
+    buffer.seek(0)
 
-    # Save to MEDIA directory
-    from django.core.files.base import ContentFile
-    import os
-    buf = io.BytesIO()
-    qr.save(buf, format='PNG')
-    buf.seek(0)
-
-    # Save image file to user directory
-    user.qr_code_image.save(file_name, ContentFile(buf.read()), save=True)
-
-    # Generate full URL
-    qr_code_url = request.build_absolute_uri(user.qr_code_image.url)
-    return Response({'qr_code_url': qr_code_url})
+    # Encode as base64
+    image_base64 = base64.b64encode(buffer.read()).decode('utf-8')
+    return Response({'qr_code_base64': image_base64})
 
 
 @api_view(['POST'])
