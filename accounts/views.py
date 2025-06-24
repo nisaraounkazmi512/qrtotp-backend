@@ -71,37 +71,24 @@ def logout_view(request):
 def generate_qr(request):
     user = request.user
 
-    # Generate TOTP secret if not set
     if not user.totp_secret:
         user.totp_secret = pyotp.random_base32()
         user.save()
 
-    # Generate provisioning URI
     totp = pyotp.TOTP(user.totp_secret)
     uri = totp.provisioning_uri(name=user.email, issuer_name="QROTP Project")
 
-    # Create QR code
     qr = qrcode.make(uri)
     buf = io.BytesIO()
     qr.save(buf, format='PNG')
     buf.seek(0)
 
-    # Ensure the qr_codes/ directory exists
-    qr_codes_path = os.path.join(settings.MEDIA_ROOT, 'qr_codes')
-    os.makedirs(qr_codes_path, exist_ok=True)
-
-    # Save image
     from django.core.files.base import ContentFile
     file_name = f"qr_codes/{user.email.replace('@', '_at_')}_qr.png"
     user.qr_code_image.save(file_name, ContentFile(buf.read()), save=True)
 
-    user.refresh_from_db()
-
-    if user.qr_code_image and user.qr_code_image.url:
-        qr_code_url = request.build_absolute_uri(user.qr_code_image.url)
-        return Response({'qr_code_url': qr_code_url})
-    else:
-        return Response({'error': 'QR code could not be saved.'}, status=500)
+    qr_code_url = request.build_absolute_uri(user.qr_code_image.url)
+    return Response({'qr_code_url': qr_code_url})
 
 
 
