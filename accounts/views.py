@@ -12,12 +12,9 @@ import qrcode
 import io
 from django.http import HttpResponse
 from .permissions import IsOTPVerified
-import os
 from django.conf import settings
-import base64
-from django.http import JsonResponse
-from io import BytesIO
-import qrcode
+from django.core.files.base import ContentFile
+import os
 
 
 class SignupView(APIView):
@@ -72,29 +69,40 @@ def logout_view(request):
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated])
 def generate_qr(request):
-    import base64
-    import pyotp
-    import qrcode
-    import io
-
     user = request.user
 
+    # Generate TOTP secret if not set
     if not user.totp_secret:
         user.totp_secret = pyotp.random_base32()
         user.save()
 
+    # Generate provisioning URI
     totp = pyotp.TOTP(user.totp_secret)
     uri = totp.provisioning_uri(name=user.email, issuer_name="QROTP Project")
 
-    # Generate QR code as image in memory
+    # Create QR code
     qr = qrcode.make(uri)
-    buffer = io.BytesIO()
-    qr.save(buffer, format='PNG')
-    buffer.seek(0)
+    buf = io.BytesIO()
+    qr.save(buf, format='PNG')
+    buf.seek(0)
 
-    # Encode as base64
-    image_base64 = base64.b64encode(buffer.read()).decode('utf-8')
-    return Response({'qr_code_base64': image_base64})
+    # Ensure the qr_codes/ directory exists
+    qr_codes_path = os.path.join(settings.MEDIA_ROOT, 'qr_codes')
+    os.makedirs(qr_codes_path, exist_ok=True)
+
+    # Save image
+    from django.core.files.base import ContentFile
+    file_name = f"qr_codes/{user.email.replace('@', '_at_')}_qr.png"
+    user.qr_code_image.save(file_name, ContentFile(buf.read()), save=True)
+
+    user.refresh_from_db()
+
+    if user.qr_code_image and user.qr_code_image.url:
+        qr_code_url = request.build_absolute_uri(user.qr_code_image.url)
+        return Response({'qr_code_url': qr_code_url})
+    else:
+        return Response({'error': 'QR code could not be saved.'}, status=500)
+
 
 
 @api_view(['POST'])
@@ -103,6 +111,7 @@ def generate_qr(request):
 def verify_otp(request):
     otp = request.data.get('otp')
     user = request.user
+    print("📌 Authenticated user:", user, "| Email:", user.email if hasattr(user, 'email') else 'N/A')
 
     if not user.totp_secret:
         return Response({'error': 'TOTP secret not set for user'}, status=status.HTTP_400_BAD_REQUEST)
