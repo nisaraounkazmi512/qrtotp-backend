@@ -29,10 +29,10 @@ class SignupView(APIView):
 
 class LoginAPIView(APIView):
     def post(self, request):
-        username = request.data.get('username')
+        email = request.data.get('email')
         password = request.data.get('password')
 
-        user = authenticate(username=username, password=password)
+        user = authenticate(email=email, password=password)
         if user is not None:
             user.otp_verified = False
             user.save()
