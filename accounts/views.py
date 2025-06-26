@@ -132,3 +132,16 @@ def reset_totp(request):
     buf.seek(0)
 
     return HttpResponse(buf.getvalue(), content_type='image/png')
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def get_totp_secret(request):
+    user = request.user
+
+    # Generate and save a new TOTP secret if not already present
+    if not user.totp_secret:
+        user.totp_secret = pyotp.random_base32()
+        user.save()
+
+    return Response({'totp_secret': user.totp_secret})
