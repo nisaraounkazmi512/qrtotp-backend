@@ -3,6 +3,8 @@ from rest_framework import status
 from .serializers import CustomUserSerializer
 from rest_framework.authtoken.models import Token
 from django.contrib.auth import authenticate
+from django.contrib.auth import get_user_model
+from django.contrib.auth import login
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
@@ -28,30 +30,31 @@ class SignupView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+User = get_user_model()
 
-class  LoginAPIView(APIView):
+class LoginAPIView(APIView):
     def post(self, request):
         email = request.data.get('email')
         password = request.data.get('password')
 
-        user = authenticate(email=email, password=password)
-        if user is not None:
+        # Try to find user by email
+        user = User.objects.filter(email=email).first()
+        if user and user.check_password(password):
+            login(request, user)  # Optional: logs in user for session-based auth
             user.otp_verified = False
             user.save()
-
             token, created = Token.objects.get_or_create(user=user)
 
-            # Generate current OTP and return it for testing
+            # Generate OTP for testing (temporary)
             totp = pyotp.TOTP(user.totp_secret)
             current_otp = totp.now()
 
             return Response({
                 'token': token.key,
-                'otp_for_testing': current_otp  # 👈 TEMP: useful for testing
+                'otp_for_testing': current_otp  # 👈 TEMP: for testing only
             })
 
         return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
-
 
 @api_view(['GET'])
 @authentication_classes([TokenAuthentication])
