@@ -21,13 +21,15 @@ class SignupView(APIView):
     def post(self, request):
         serializer = CustomUserSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
+            user = serializer.save()
+            user.totp_secret = pyotp.random_base32()
+            user.save()
             return Response({'message': 'User created successfully'}, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 
-class LoginAPIView(APIView):
+class  LoginAPIView(APIView):
     def post(self, request):
         email = request.data.get('email')
         password = request.data.get('password')
@@ -38,9 +40,18 @@ class LoginAPIView(APIView):
             user.save()
 
             token, created = Token.objects.get_or_create(user=user)
-            return Response({'token': token.key})
-        else:
-            return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+
+            # Generate current OTP and return it for testing
+            totp = pyotp.TOTP(user.totp_secret)
+            current_otp = totp.now()
+
+            return Response({
+                'token': token.key,
+                'otp_for_testing': current_otp  # 👈 TEMP: useful for testing
+            })
+
+        return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+
 
 @api_view(['GET'])
 @authentication_classes([TokenAuthentication])
