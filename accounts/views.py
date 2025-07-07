@@ -49,7 +49,7 @@ class LoginAPIView(APIView):
             token, created = Token.objects.get_or_create(user=user)
 
             # Generate OTP for testing (temporary)
-            totp = pyotp.TOTP(user.totp_secret, interval=90)
+            totp = pyotp.TOTP(user.totp_secret)
             current_otp = totp.now()
 
             return Response({
@@ -92,7 +92,7 @@ def generate_qr(request):
         user.totp_secret = pyotp.random_base32()
         user.save()
 
-    totp = pyotp.TOTP(user.totp_secret, interval=90)
+    totp = pyotp.TOTP(user.totp_secret)
     uri = totp.provisioning_uri(name=user.email, issuer_name="QROTP Project")
 
     qr = qrcode.make(uri)
@@ -121,7 +121,7 @@ def verify_otp(request):
     if not user.totp_secret:
         return Response({'error': 'TOTP secret not set for user'}, status=status.HTTP_400_BAD_REQUEST)
 
-    totp = pyotp.TOTP(user.totp_secret, interval=90)
+    totp = pyotp.TOTP(user.totp_secret)
     if totp.verify(otp):
         user.otp_verified = True
         user.save()
@@ -142,7 +142,7 @@ def reset_totp(request):
     user.save()
 
     # Generate new QR code
-    totp = pyotp.TOTP(user.totp_secret, interval=90)
+    totp = pyotp.TOTP(user.totp_secret)
     uri = totp.provisioning_uri(name=user.email, issuer_name="QROTP Project")
     qr = qrcode.make(uri)
     buf = io.BytesIO()
