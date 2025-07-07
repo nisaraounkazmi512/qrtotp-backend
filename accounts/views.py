@@ -100,6 +100,7 @@ def generate_qr(request):
     qr.save(buf, format='PNG')
     buf.seek(0)
 
+
     from django.core.files.base import ContentFile
     file_name = f"qr_codes/{user.email.replace('@', '_at_')}_qr.png"
     user.qr_code_image.save(file_name, ContentFile(buf.read()), save=True)
