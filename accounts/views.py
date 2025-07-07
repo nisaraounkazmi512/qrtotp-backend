@@ -67,8 +67,11 @@ def protected_view(request):
     if not user.otp_verified:
         return Response({"error": "OTP not verified"}, status=status.HTTP_403_FORBIDDEN)
 
-    return Response({"message": f"Hello, {user.email}! You are authenticated."})
-
+    return Response({
+        'email': request.user.email,
+        'first_name': request.user.first_name,
+        'last_name': request.user.last_name
+    })
 
 
 @api_view(['POST'])
