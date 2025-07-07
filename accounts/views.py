@@ -14,12 +14,14 @@ import qrcode
 import io
 from django.http import HttpResponse
 from .permissions import IsOTPVerified
+from rest_framework.permissions import AllowAny
 from django.conf import settings
 from django.core.files.base import ContentFile
 import os
 
 
 class SignupView(APIView):
+    permission_classes = [AllowAny]
     def post(self, request):
         serializer = CustomUserSerializer(data=request.data)
         if serializer.is_valid():
@@ -33,6 +35,7 @@ class SignupView(APIView):
 User = get_user_model()
 
 class LoginAPIView(APIView):
+    permission_classes = [AllowAny]
     def post(self, request):
         email = request.data.get('email')
         password = request.data.get('password')
