@@ -54,7 +54,9 @@ class LoginAPIView(APIView):
 
             return Response({
                 'token': token.key,
-                'otp_for_testing': current_otp  # 👈 TEMP: for testing only
+                'otp_for_testing': current_otp,  # 👈 TEMP: for testing only
+                'first_name': user.first_name,
+                'last_name': user.last_name
             })
 
         return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
