@@ -1,23 +1,20 @@
-from rest_framework.views import APIView
-from rest_framework import status
 from .serializers import CustomUserSerializer
-from rest_framework.authtoken.models import Token
-from django.contrib.auth import authenticate
-from django.contrib.auth import get_user_model
-from django.contrib.auth import login
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
-from rest_framework.response import Response
-import pyotp
 import qrcode
 import io
 from django.http import HttpResponse
 from .permissions import IsOTPVerified
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from django.contrib.auth import login
+from django.contrib.auth import get_user_model
 from rest_framework.permissions import AllowAny
-from django.conf import settings
-from django.core.files.base import ContentFile
-import os
+from rest_framework.authtoken.models import Token
+import pyotp
+import logging
 
 
 class SignupView(APIView):
@@ -34,32 +31,41 @@ class SignupView(APIView):
 
 User = get_user_model()
 
+
+User = get_user_model()
+logger = logging.getLogger(__name__)
+
 class LoginAPIView(APIView):
     permission_classes = [AllowAny]
+
     def post(self, request):
-        email = request.data.get('email')
-        password = request.data.get('password')
+        try:
+            email = request.data.get('email')
+            password = request.data.get('password')
 
-        # Try to find user by email
-        user = User.objects.filter(email=email).first()
-        if user and user.check_password(password):
-            login(request, user)  # Optional: logs in user for session-based auth
-            user.otp_verified = False
-            user.save()
-            token, created = Token.objects.get_or_create(user=user)
+            user = User.objects.filter(email=email).first()
 
-            # Generate OTP for testing (temporary)
-            totp = pyotp.TOTP(user.totp_secret)
-            current_otp = totp.now()
+            if user and user.check_password(password):
+                login(request, user)
+                user.otp_verified = False
+                user.save()
 
-            return Response({
-                'token': token.key,
-                'otp_for_testing': current_otp,  # 👈 TEMP: for testing only
-                'first_name': user.first_name,
-                'last_name': user.last_name
-            })
+                token, _ = Token.objects.get_or_create(user=user)
+                totp = pyotp.TOTP(user.totp_secret)
+                current_otp = totp.now()
 
-        return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+                return Response({
+                    'token': token.key,
+                    'otp_for_testing': current_otp,
+                    'first_name': user.first_name,
+                    'last_name': user.last_name
+                })
+
+            return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        except Exception as e:
+            logger.error(f"Login error: {str(e)}")
+            return Response({'error': 'Internal server error'}, status=500)
 
 @api_view(['GET'])
 @authentication_classes([TokenAuthentication])

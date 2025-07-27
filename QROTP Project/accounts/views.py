@@ -12,6 +12,7 @@ import qrcode
 import io
 from django.http import HttpResponse
 from .permissions import IsOTPVerified
+from rest_framework import status
 
 
 class SignupView(APIView):
@@ -24,20 +25,33 @@ class SignupView(APIView):
 
 
 
+User = get_user_model()
+
 class LoginAPIView(APIView):
     def post(self, request):
-        username = request.data.get('username')
+        email = request.data.get('email')
         password = request.data.get('password')
 
-        user = authenticate(username=username, password=password)
-        if user is not None:
+        user = User.objects.filter(email=email).first()
+        if user and user.check_password(password):
             user.otp_verified = False
             user.save()
 
             token, created = Token.objects.get_or_create(user=user)
-            return Response({'token': token.key})
+            totp = pyotp.TOTP(user.totp_secret)
+            current_otp = totp.now()
+
+            return Response({
+                'token': token.key,
+                'first_name': user.first_name or "",
+                'last_name': user.last_name or "",
+                'otp_for_testing': current_otp
+            })
         else:
             return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+
+
+
 
 @api_view(['GET'])
 @authentication_classes([TokenAuthentication])
