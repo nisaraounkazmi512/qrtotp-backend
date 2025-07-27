@@ -15,6 +15,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.authtoken.models import Token
 import pyotp
 import logging
+import base64
 
 
 class SignupView(APIView):
@@ -93,6 +94,7 @@ def logout_view(request):
 
 
 
+
 @api_view(['GET'])
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated])
@@ -106,18 +108,18 @@ def generate_qr(request):
     totp = pyotp.TOTP(user.totp_secret)
     uri = totp.provisioning_uri(name=user.email, issuer_name="QROTP Project")
 
+    # Generate QR as PNG in memory
     qr = qrcode.make(uri)
     buf = io.BytesIO()
     qr.save(buf, format='PNG')
     buf.seek(0)
 
+    # Encode image in base64
+    img_base64 = base64.b64encode(buf.read()).decode('utf-8')
+    img_uri = f'data:image/png;base64,{img_base64}'
 
-    from django.core.files.base import ContentFile
-    file_name = f"qr_codes/{user.email.replace('@', '_at_')}_qr.png"
-    user.qr_code_image.save(file_name, ContentFile(buf.read()), save=True)
+    return Response({'qr_code_url': img_uri})
 
-    qr_code_url = request.build_absolute_uri(user.qr_code_image.url)
-    return Response({'qr_code_url': qr_code_url})
 
 
 
