@@ -118,7 +118,10 @@ def generate_qr(request):
     img_base64 = base64.b64encode(buf.read()).decode('utf-8')
     img_uri = f'data:image/png;base64,{img_base64}'
 
-    return Response({'qr_code_url': img_uri})
+    return Response({
+        'qr_code_url': img_uri,
+        'totp_secret': user.totp_secret
+    })
 
 
 
